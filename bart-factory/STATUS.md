@@ -1,6 +1,6 @@
 # Porto / Feynd — current status
 
-Last updated: **2026-05-15**
+Last updated: **2026-05-16**
 
 ## What porto is
 
@@ -31,19 +31,30 @@ Porto is the **reference implementation** of the Bart Factory. The "Feynd" app i
 - Production alias: `porto-hazel-omega.vercel.app`
 - `app/api/health/route.ts` — health ping
 - `app/api/extract/route.ts` — POST URL → linkedom + Mozilla Readability → clean article text
-- `app/api/quiz/generate/route.ts` — POST text → Claude Sonnet 4.6 via AI Gateway → 5 zod-validated quiz questions
-- `scripts/smoke.mjs` — 7-case smoke runner (URL configurable via `BASE_URL`)
+- `app/api/quiz/generate/route.ts` — POST URL + text → Claude Sonnet 4.6 via AI Gateway → 5 zod-validated quiz questions, persisted, returns `quiz_id`
+- `app/api/quiz/submit/route.ts` — POST `{ quiz_id, answers }` → grade against stored questions, persist attempt, return score
+- `app/api/quiz/history/route.ts` — GET → recent quizzes with best attempt score
+- `lib/supabase.ts` — server-only Supabase client (service-role)
+- `scripts/smoke.mjs` — 13-case smoke runner with stash chaining (URL configurable via `BASE_URL`)
 - `npm run smoke` (localhost), `npm run smoke:prod` (production alias)
 - `public/test-fixtures/article.html` — hermetic fixture for extraction smoke
 
-### UI — `web/app/page.tsx`
+### Database — Supabase (project `tqniseocczttrfwtpbdr`, shared with kochi / amber / etc.)
 
-- Paste URL → Extract button → result panel → Generate Quiz button → 5 questions with show-answer toggle
+- Tables prefixed `feynd_v1_` to avoid colliding with other apps in this shared project.
+- `feynd_v1_quizzes` — `source_url`, `source_title`, `source_text`, `questions` jsonb, `model`, `created_at`. RLS on, no policies (service-role-only access).
+- `feynd_v1_attempts` — `quiz_id` fk, `answers` jsonb, `score` int, `created_at`. Same RLS posture.
+- Migration: `supabase/migrations/0001_feynd_v1_init.sql`. Applied via Supabase Management API.
 
-### Verification status (last run, 2026-05-15)
+### UI — `web/app/`
 
-- **Local backend-verifier:** PASS (typecheck / lint / build / 7-case smoke against dev server)
-- **Deployment-verifier against `porto-hazel-omega.vercel.app`:** PASS (7/7 smoke cases against live production URL, including live LLM quiz generation)
+- `page.tsx` — paste URL → Extract → Generate Quiz → click choices → Submit → score + per-question correct/wrong with explanations.
+- `history/page.tsx` — server-rendered list of past quizzes with best score.
+
+### Verification status (last run, 2026-05-16)
+
+- **Local backend-verifier:** PASS (typecheck / lint / build / 13-case smoke against dev server, full Supabase round trip).
+- **Deployment-verifier against `porto-hazel-omega.vercel.app`:** PASS (13/13 against live production URL including live LLM generation and live Supabase reads/writes).
 
 ### What the deploy loop caught (Bart Factory dogfood)
 
@@ -58,8 +69,8 @@ Both are exactly the class of regression the methodology exists to catch before 
 
 | Item | Status |
 |---|---|
-| Build 2: Supabase persistence (quizzes + scores + history view) | not started |
 | Build 3: iOS app | `ios/` is empty |
+| Per-user scoping (auth or device-ID; today the history is global) | not started |
 | Preview deploys via git push branches | infrastructure ready (git connected, OIDC on), but smoke-against-preview blocked by Vercel Deployment Protection — needs bypass token or protection disabled |
 | iOS verifier subagent | not started |
 | Hooks (`.claude/settings.json`) to auto-fire verifiers on edits | not started |
@@ -75,4 +86,4 @@ Both are exactly the class of regression the methodology exists to catch before 
 4. **Verify local:** `npm run smoke` from `/web`, or invoke the `backend-verifier` subagent.
 5. **Verify production:** `npm run smoke:prod` from `/web`, or invoke the `deployment-verifier` subagent.
 6. **Deploy:** any push to `main` on `github.com/bdecrem/porto` triggers a Vercel production deploy (root dir = `web`). Or run `vercel --prod` from the repo root for an ad-hoc deploy.
-7. Pick a Build above and execute. Recommended order: Build 2 (Supabase) → Build 3 (iOS).
+7. Pick a Build above and execute. Recommended order: per-user scoping → Build 3 (iOS).
