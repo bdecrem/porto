@@ -15,16 +15,18 @@ See `docs/definition-of-done.md` (Layer 1). In short: typecheck passes, lint pas
 
 Execute these checks **in order**. If a step fails, skip the remaining steps and report the failure.
 
-1. **typecheck** — `cd /Users/bart/Documents/code/porto/web && npm run typecheck`
-2. **lint** — `cd /Users/bart/Documents/code/porto/web && npm run lint`
-3. **build** — `cd /Users/bart/Documents/code/porto/web && npm run build`
+All `cd` commands below resolve the web directory via `git rev-parse` so this agent works on any clone of the repo, from any cwd inside it.
+
+1. **typecheck** — `cd "$(git rev-parse --show-toplevel)/web" && npm run typecheck`
+2. **lint** — `cd "$(git rev-parse --show-toplevel)/web" && npm run lint`
+3. **build** — `cd "$(git rev-parse --show-toplevel)/web" && npm run build`
 4. **smoke** — start the dev server in the background, wait for it to be ready, run `npm run smoke`, then stop the server.
 
 ### How to run the smoke step (step 4)
 
 ```bash
 # Start dev server in background
-cd /Users/bart/Documents/code/porto/web
+cd "$(git rev-parse --show-toplevel)/web"
 (npm run dev > /tmp/porto-dev.log 2>&1 &) ; echo "started"
 
 # Wait for it to come up — poll /api/health until 200 or 30s timeout

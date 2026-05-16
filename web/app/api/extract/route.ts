@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
 
 export const dynamic = "force-dynamic";
@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const dom = new JSDOM(html, { url });
-    const article = new Readability(dom.window.document).parse();
+    const { document } = parseHTML(html);
+    // Readability expects a Document; linkedom's is structurally compatible.
+    const article = new Readability(document as unknown as Document).parse();
     if (!article) {
       return NextResponse.json({ error: "no_article_found" }, { status: 422 });
     }

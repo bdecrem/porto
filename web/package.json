@@ -8,12 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:prod": "BASE_URL=https://porto-hazel-omega.vercel.app node scripts/smoke.mjs",
+    "smoke:url": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
     "ai": "^6.0.177",
-    "jsdom": "^29.1.1",
+    "linkedom": "^0.18.12",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -21,7 +23,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/jsdom": "^28.0.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
