@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { text?: unknown; title?: unknown };
+  let body: { text?: unknown; title?: unknown; url?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
 
   const text = body?.text;
   const title = typeof body?.title === "string" ? body.title : null;
+  const url = typeof body?.url === "string" ? body.url : null;
 
   if (typeof text !== "string") {
     return NextResponse.json({ error: "missing_text" }, { status: 400 });
@@ -53,9 +55,13 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  if (!url) {
+    return NextResponse.json({ error: "missing_url" }, { status: 400 });
+  }
 
   const trimmed = text.slice(0, MAX_TEXT_CHARS);
 
+  let quiz: z.infer<typeof QuizSchema>;
   try {
     const { object } = await generateObject({
       model: MODEL,
@@ -79,12 +85,7 @@ export async function POST(req: NextRequest) {
         .filter(Boolean)
         .join("\n"),
     });
-
-    return NextResponse.json({
-      ok: true,
-      model: MODEL,
-      quiz: object,
-    });
+    quiz = object;
   } catch (err) {
     return NextResponse.json(
       {
@@ -94,4 +95,33 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
+
+  const { data, error } = await supabaseAdmin()
+    .from("feynd_v1_quizzes")
+    .insert({
+      source_url: url,
+      source_title: title,
+      source_text: trimmed,
+      questions: quiz.questions,
+      model: MODEL,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json(
+      {
+        error: "persist_failed",
+        message: error?.message ?? "insert returned no row",
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    quiz_id: data.id,
+    model: MODEL,
+    quiz,
+  });
 }

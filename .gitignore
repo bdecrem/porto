@@ -32,3 +32,6 @@ ios/*.xcuserdata/
 
 # claude-code local
 .claude/settings.local.json
+
+# Supabase CLI cache (created by supabase link)
+supabase/.temp/
